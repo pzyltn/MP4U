@@ -47,6 +47,7 @@ build/
 
 # Log file
 *.log
+logs/
 
 # BlueJ files
 *.ctxt
@@ -115,9 +116,6 @@ cmake-build-*/
 
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
-
-# File-based project format
-*.iws
 
 # IntelliJ
 out/
