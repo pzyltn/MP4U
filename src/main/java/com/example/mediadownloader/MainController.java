@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.file.Paths;
 import java.io.File;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,12 +44,7 @@ public class MainController {
                 logger.info("Preparing to download: {}", videoUrl);
 
                 // determine correct path to executable
-                String os = System.getProperty("os.name").toLowerCase();
-                String baseDir = System.getProperty("user.dir") + File.separator + "bin" + File.separator;
-
-                String command = os.contains("win")
-                        ? baseDir + "windows" + File.separator + "yt-dlp.exe"
-                        : baseDir + "mac" + File.separator + "yt-dlp";
+                String command = getBinaryPath();
 
                 // make call to the executable
                 ProcessBuilder pb = new ProcessBuilder(command, videoUrl);
@@ -117,5 +113,16 @@ public class MainController {
             alert.setContentText(message);
             alert.showAndWait();
         });
+    }
+
+    private String getBinaryPath() {
+        String os = System.getProperty("os.name").toLowerCase();
+        String userHome = System.getProperty("user.home");
+
+        if (os.contains("win")) {
+            return Paths.get(System.getenv("APPDATA"), "MP4U", "bin", "yt-dlp.exe").toString();
+        } else {
+            return Paths.get(userHome, "Library", "Application Support", "MP4U", "bin", "yt-dlp").toString();
+        }
     }
 }
