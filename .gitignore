@@ -47,6 +47,7 @@ build/
 
 # Log file
 *.log
+logs/
 
 # BlueJ files
 *.ctxt
@@ -115,9 +116,6 @@ cmake-build-*/
 
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
-
-# File-based project format
-*.iws
 
 # IntelliJ
 out/
@@ -193,3 +191,4 @@ buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains,java,maven
+bin/
