@@ -6,6 +6,8 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
@@ -21,13 +23,40 @@ public class MainController {
     @FXML private TextField urlField;
     @FXML private ProgressBar progressBar;
     @FXML private Label statusLabel;
+    @FXML private TextField downloadFolderField;
 
     // regex to extract %s
     private static final Pattern PERCENT_PATTERN = Pattern.compile("\\[download\\]\\s+(\\d+(\\.\\d+)?)%");
 
     @FXML
+    public void initialize() {
+        String defaultDownloadsPath = System.getProperty("user.home") + File.separator + "Downloads";
+        downloadFolderField.setText(defaultDownloadsPath);
+    }
+
+    @FXML
+    protected void onBrowseClick() {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Set Download Location");
+
+        // start browser at currently selected directory (downloads folder @ start)
+        File currentDir = new File(downloadFolderField.getText());
+        if (currentDir.exists() && currentDir.isDirectory()) {
+            directoryChooser.setInitialDirectory(currentDir);
+        }
+
+        Stage stage = (Stage) downloadFolderField.getScene().getWindow();
+        File selectedDirectory = directoryChooser.showDialog(stage);
+
+        if (selectedDirectory != null) {
+            downloadFolderField.setText(selectedDirectory.getAbsolutePath());
+        }
+    }
+
+    @FXML
     protected void onDownloadClick() {
         String videoUrl = urlField.getText().trim();
+        String savePath = downloadFolderField.getText().trim();
 
         // check that url input is not empty
         if (videoUrl.isEmpty()) {
@@ -41,13 +70,13 @@ public class MainController {
         // prevent UI from freezing during download
         new Thread(() -> {
             try {
-                logger.info("Preparing to download: {}", videoUrl);
+                logger.info("Preparing to download: {} to {}", videoUrl, savePath);
 
                 // determine correct path to executable
                 String command = getBinaryPath();
 
                 // make call to the executable
-                ProcessBuilder pb = new ProcessBuilder(command, videoUrl);
+                ProcessBuilder pb = new ProcessBuilder(command, "-P", savePath, videoUrl);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
 
                 logger.debug("Executing command: {}", command);

@@ -5,6 +5,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
 <VBox alignment="CENTER" spacing="20.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.mediadownloader.MainController">
@@ -14,6 +15,12 @@
 
     <Label fx:id="appTitle" text="MP4U Media Downloader" />
    <TextField id="urlField" fx:id="urlField" promptText="YouTube URL" />
+   <HBox>
+      <children>
+         <TextField fx:id="downloadFolderField" editable="false" promptText="Set download location..." />
+         <Button mnemonicParsing="false" onAction="#onBrowseClick" text="Browse" />
+      </children>
+   </HBox>
     <Button id="downloadButton" fx:id="downloadButton" accessibleText="Download Button" onAction="#onDownloadClick" text="Download" />
    <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
    <Label fx:id="statusLabel" text="Progress" />
