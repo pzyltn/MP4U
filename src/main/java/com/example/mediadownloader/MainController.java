@@ -57,7 +57,7 @@ public class MainController {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        logger.info("[yt-dlp] {}", line);
+                        logger.debug("[yt-dlp] {}", line);
 
                         // parse the line for progress percentages
                         Matcher matcher = PERCENT_PATTERN.matcher(line);
