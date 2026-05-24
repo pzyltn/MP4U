@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.io.File;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.prefs.Preferences;
 
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
@@ -25,13 +26,19 @@ public class MainController {
     @FXML private Label statusLabel;
     @FXML private TextField downloadFolderField;
 
+    // maintain user prefs
+    private Preferences prefs = Preferences.userNodeForPackage(MainController.class);
+    private static final String PREF_DOWNLOAD_FOLDER = "last_download_folder";
+
     // regex to extract %s
     private static final Pattern PERCENT_PATTERN = Pattern.compile("\\[download\\]\\s+(\\d+(\\.\\d+)?)%");
 
     @FXML
     public void initialize() {
         String defaultDownloadsPath = System.getProperty("user.home") + File.separator + "Downloads";
-        downloadFolderField.setText(defaultDownloadsPath);
+        // if pref not set yet, use Downloads/ as default
+        String savedPath = prefs.get(PREF_DOWNLOAD_FOLDER, defaultDownloadsPath);
+        downloadFolderField.setText(savedPath);
     }
 
     @FXML
@@ -49,7 +56,9 @@ public class MainController {
         File selectedDirectory = directoryChooser.showDialog(stage);
 
         if (selectedDirectory != null) {
-            downloadFolderField.setText(selectedDirectory.getAbsolutePath());
+            String newPath = selectedDirectory.getAbsolutePath();
+            downloadFolderField.setText(newPath);
+            prefs.put(PREF_DOWNLOAD_FOLDER, newPath);
         }
     }
 
