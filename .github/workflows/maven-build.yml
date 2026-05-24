@@ -1,0 +1,27 @@
+name: Java CI with Maven
+
+on:
+  push:
+    # run checks on all feature branches
+    branches: [ "feature/**" ]
+  pull_request:
+    # run checks on PR to main
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Set Up Java 25 Development Kit
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and Execute Test Suite with Maven
+        run: mvn -B clean verify
