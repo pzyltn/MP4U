@@ -36,8 +36,15 @@ public class MainController {
     @FXML
     public void initialize() {
         String defaultDownloadsPath = System.getProperty("user.home") + File.separator + "Downloads";
+
         // if pref not set yet, use Downloads/ as default
         String savedPath = prefs.get(PREF_DOWNLOAD_FOLDER, defaultDownloadsPath);
+        if (savedPath.equals(defaultDownloadsPath)){
+            logger.info("No custom download location found, using Downloads folder: {}", defaultDownloadsPath);
+        } else {
+            logger.info("Custom download location found: {}", savedPath);
+        }
+
         downloadFolderField.setText(savedPath);
     }
 
@@ -49,7 +56,10 @@ public class MainController {
         // start browser at currently selected directory (downloads folder @ start)
         File currentDir = new File(downloadFolderField.getText());
         if (currentDir.exists() && currentDir.isDirectory()) {
+            logger.debug("Opening file browser at existing directory: {}", currentDir.getAbsolutePath());
             directoryChooser.setInitialDirectory(currentDir);
+        } else {
+            logger.warn("Saved directory no longer exists or is invalid. Opening file browser at system default. Previous path: {}", currentDir.getAbsolutePath());
         }
 
         Stage stage = (Stage) downloadFolderField.getScene().getWindow();
@@ -57,8 +67,12 @@ public class MainController {
 
         if (selectedDirectory != null) {
             String newPath = selectedDirectory.getAbsolutePath();
+            logger.info("User selected new download directory: {}", newPath);
             downloadFolderField.setText(newPath);
             prefs.put(PREF_DOWNLOAD_FOLDER, newPath);
+            logger.debug("Successfully saved new download directory to preferences.");
+        } else {
+            logger.debug("User canceled directory selection.");
         }
     }
 
