@@ -24,4 +24,4 @@ jobs:
           cache: 'maven'
 
       - name: Build and Execute Test Suite with Maven
-        run: mvn -B clean verify
+        run: xvfb-run mvn -B clean verify
