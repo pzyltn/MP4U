@@ -9,33 +9,45 @@ import javafx.scene.control.TextField;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.testfx.api.FxAssert;
+import org.mockito.Mockito;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.framework.junit5.Start;
-import org.testfx.matcher.control.LabeledMatchers;
 import org.testfx.util.WaitForAsyncUtils;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.prefs.Preferences;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 
 @ExtendWith(ApplicationExtension.class)
 public class MainControllerTest {
 
     private MainController controller;
     private TextField urlField;
+    private TextField downloadFolderField;
     private ProgressBar progressBar;
     private Label statusLabel;
+    private Preferences prefs;
 
     @Start
-    public void start(Stage stage) throws IOException {
+    public void start(Stage stage) throws Exception {
+        prefs = Preferences.userNodeForPackage(MainController.class);
+        prefs.clear();
+
+        controller = Mockito.spy(new MainController());
+
         FXMLLoader fxmlLoader = new FXMLLoader(DownloaderApp.class.getResource("main-view.fxml"));
+        fxmlLoader.setControllerFactory(param -> controller);
+
         Scene scene = new Scene(fxmlLoader.load());
         stage.setScene(scene);
         stage.show();
 
-        controller = fxmlLoader.getController();
         urlField = (TextField) scene.lookup("#urlField");
+        downloadFolderField = (TextField) scene.lookup("#downloadFolderField");
         progressBar = (ProgressBar) scene.lookup("#progressBar");
         statusLabel = (Label) scene.lookup("#statusLabel");
     }
@@ -43,10 +55,43 @@ public class MainControllerTest {
     @Test
     public void testInitialUIElementsState() {
         assertNotNull(urlField, "URL Input field should be loaded from FXML");
+        assertNotNull(downloadFolderField, "Download Folder field should be loaded from FXML");
         assertNotNull(progressBar, "ProgressBar should be loaded from FXML");
         assertNotNull(statusLabel, "Status Label should be loaded from FXML");
+
         assertEquals("", urlField.getText(), "URL field should start empty");
         assertEquals(0.0, progressBar.getProgress(), 0.001, "Progress bar should start at 0");
+
+        String expectedDefault = System.getProperty("user.home") + File.separator + "Downloads";
+        assertEquals(expectedDefault, downloadFolderField.getText(), "Should default to standard Downloads folder");
+    }
+
+    @Test
+    public void testBrowseUpdatesPathAndPreferences() {
+        File simulatedChosenFolder = new File(System.getProperty("user.home") + File.separator + "Documents");
+
+        doReturn(simulatedChosenFolder).when(controller).openDirectoryBrowser(any(), any());
+
+        Platform.runLater(() -> controller.onBrowseClick());
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertEquals(simulatedChosenFolder.getAbsolutePath(), downloadFolderField.getText(),
+                "The text field should update to the newly selected path.");
+        assertEquals(simulatedChosenFolder.getAbsolutePath(), prefs.get("last_download_folder", ""),
+                "The new path should be saved to OS Preferences.");
+    }
+
+    @Test
+    public void testBrowseCancellationDoesNotChangePath() {
+        String originalPath = downloadFolderField.getText();
+
+        doReturn(null).when(controller).openDirectoryBrowser(any(), any());
+
+        Platform.runLater(() -> controller.onBrowseClick());
+        WaitForAsyncUtils.waitForFxEvents();
+
+        assertEquals(originalPath, downloadFolderField.getText(),
+                "The text field should remain unchanged if the user cancels the window.");
     }
 
     @Test

@@ -50,20 +50,9 @@ public class MainController {
 
     @FXML
     protected void onBrowseClick() {
-        DirectoryChooser directoryChooser = new DirectoryChooser();
-        directoryChooser.setTitle("Set Download Location");
-
-        // start browser at currently selected directory (downloads folder @ start)
         File currentDir = new File(downloadFolderField.getText());
-        if (currentDir.exists() && currentDir.isDirectory()) {
-            logger.debug("Opening file browser at existing directory: {}", currentDir.getAbsolutePath());
-            directoryChooser.setInitialDirectory(currentDir);
-        } else {
-            logger.warn("Saved directory no longer exists or is invalid. Opening file browser at system default. Previous path: {}", currentDir.getAbsolutePath());
-        }
-
         Stage stage = (Stage) downloadFolderField.getScene().getWindow();
-        File selectedDirectory = directoryChooser.showDialog(stage);
+        File selectedDirectory = openDirectoryBrowser(stage, currentDir);
 
         if (selectedDirectory != null) {
             String newPath = selectedDirectory.getAbsolutePath();
@@ -74,6 +63,21 @@ public class MainController {
         } else {
             logger.debug("User canceled directory selection.");
         }
+    }
+
+    protected File openDirectoryBrowser(Stage stage, File currentDir) {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Set Download Location");
+
+        // start browser at currently selected directory (downloads folder @ start)
+        if (currentDir.exists() && currentDir.isDirectory()) {
+            logger.debug("Opening file browser at existing directory: {}", currentDir.getAbsolutePath());
+            directoryChooser.setInitialDirectory(currentDir);
+        } else {
+            logger.warn("Saved directory no longer exists or is invalid. Opening file browser at system default. Previous path: {}", currentDir.getAbsolutePath());
+        }
+
+        return directoryChooser.showDialog(stage);
     }
 
     @FXML
