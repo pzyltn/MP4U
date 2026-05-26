@@ -6,6 +6,8 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
@@ -14,6 +16,7 @@ import java.nio.file.Paths;
 import java.io.File;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.prefs.Preferences;
 
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
@@ -21,13 +24,66 @@ public class MainController {
     @FXML private TextField urlField;
     @FXML private ProgressBar progressBar;
     @FXML private Label statusLabel;
+    @FXML private TextField downloadFolderField;
+
+    // maintain user prefs
+    private Preferences prefs = Preferences.userNodeForPackage(MainController.class);
+    private static final String PREF_DOWNLOAD_FOLDER = "last_download_folder";
 
     // regex to extract %s
     private static final Pattern PERCENT_PATTERN = Pattern.compile("\\[download\\]\\s+(\\d+(\\.\\d+)?)%");
 
     @FXML
+    public void initialize() {
+        String defaultDownloadsPath = System.getProperty("user.home") + File.separator + "Downloads";
+
+        // if pref not set yet, use Downloads/ as default
+        String savedPath = prefs.get(PREF_DOWNLOAD_FOLDER, defaultDownloadsPath);
+        if (savedPath.equals(defaultDownloadsPath)){
+            logger.info("No custom download location found, using Downloads folder: {}", defaultDownloadsPath);
+        } else {
+            logger.info("Custom download location found: {}", savedPath);
+        }
+
+        downloadFolderField.setText(savedPath);
+    }
+
+    @FXML
+    protected void onBrowseClick() {
+        File currentDir = new File(downloadFolderField.getText());
+        Stage stage = (Stage) downloadFolderField.getScene().getWindow();
+        File selectedDirectory = openDirectoryBrowser(stage, currentDir);
+
+        if (selectedDirectory != null) {
+            String newPath = selectedDirectory.getAbsolutePath();
+            logger.info("User selected new download directory: {}", newPath);
+            downloadFolderField.setText(newPath);
+            prefs.put(PREF_DOWNLOAD_FOLDER, newPath);
+            logger.debug("Successfully saved new download directory to preferences.");
+        } else {
+            logger.debug("User canceled directory selection.");
+        }
+    }
+
+    protected File openDirectoryBrowser(Stage stage, File currentDir) {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Set Download Location");
+
+        // start browser at currently selected directory (downloads folder @ start)
+        if (currentDir.exists() && currentDir.isDirectory()) {
+            logger.debug("Opening file browser at existing directory: {}", currentDir.getAbsolutePath());
+            directoryChooser.setInitialDirectory(currentDir);
+        } else {
+            logger.warn("Saved directory no longer exists or is invalid. Opening file browser at system default. Previous path: {}", currentDir.getAbsolutePath());
+        }
+
+        return directoryChooser.showDialog(stage);
+    }
+
+    @FXML
     protected void onDownloadClick() {
         String videoUrl = urlField.getText().trim();
+        String savePath = downloadFolderField.getText().trim();
 
         // check that url input is not empty
         if (videoUrl.isEmpty()) {
@@ -41,13 +97,13 @@ public class MainController {
         // prevent UI from freezing during download
         new Thread(() -> {
             try {
-                logger.info("Preparing to download: {}", videoUrl);
+                logger.info("Preparing to download: {} to {}", videoUrl, savePath);
 
                 // determine correct path to executable
                 String command = getBinaryPath();
 
                 // make call to the executable
-                ProcessBuilder pb = new ProcessBuilder(command, videoUrl);
+                ProcessBuilder pb = new ProcessBuilder(command, "-P", savePath, videoUrl);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
 
                 logger.debug("Executing command: {}", command);

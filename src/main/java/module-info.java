@@ -7,6 +7,7 @@ module com.example.mediadownloader {
 
     requires org.slf4j;
     requires java.net.http;
+    requires java.prefs;
 
     opens com.example.mediadownloader to javafx.fxml;
     exports com.example.mediadownloader;
