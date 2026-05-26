@@ -6,6 +6,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
@@ -17,14 +18,16 @@ import java.io.File;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.prefs.Preferences;
+import java.util.function.UnaryOperator;
 
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
 
     @FXML private TextField urlField;
+    @FXML private TextField fileNameField;
+    @FXML private TextField downloadFolderField;
     @FXML private ProgressBar progressBar;
     @FXML private Label statusLabel;
-    @FXML private TextField downloadFolderField;
 
     // maintain user prefs
     private Preferences prefs = Preferences.userNodeForPackage(MainController.class);
@@ -35,6 +38,24 @@ public class MainController {
 
     @FXML
     public void initialize() {
+        // file name
+        String forbiddenCharacters = "[<>:\"/\\\\|?*]";
+
+        UnaryOperator<TextFormatter.Change> filter = change -> {
+            String newText = change.getText();
+
+            if (newText.matches(".*" + forbiddenCharacters + ".*")) {
+                logger.debug("User attempted to input illegal file name character. Sanitizing input.");
+                String sanitized = newText.replaceAll(forbiddenCharacters, "");
+                change.setText(sanitized);
+            }
+
+            return change;
+        };
+
+        fileNameField.setTextFormatter(new TextFormatter<>(filter));
+
+        // download location
         String defaultDownloadsPath = System.getProperty("user.home") + File.separator + "Downloads";
 
         // if pref not set yet, use Downloads/ as default
@@ -83,13 +104,24 @@ public class MainController {
     @FXML
     protected void onDownloadClick() {
         String videoUrl = urlField.getText().trim();
+        String fileName = fileNameField.getText().trim();
         String savePath = downloadFolderField.getText().trim();
+
+        String output;
 
         // check that url input is not empty
         if (videoUrl.isEmpty()) {
             logger.warn("Download clicked with an empty URL.");
             showErrorAlert("Invalid URL", "Please enter a valid YouTube URL before clicking download.");
             return;
+        }
+
+        if (fileName.isEmpty()){
+            logger.info("No custom file name provided. Using default title.");
+            output = savePath + File.separator + "%(title)s.%(ext)s";
+        } else {
+            logger.info("Using custom file name: {}", fileName);
+            output = savePath + File.separator + fileName + ".%(ext)s";
         }
 
         updateProgress(0, "Starting download...");
@@ -103,7 +135,7 @@ public class MainController {
                 String command = getBinaryPath();
 
                 // make call to the executable
-                ProcessBuilder pb = new ProcessBuilder(command, "-P", savePath, videoUrl);
+                ProcessBuilder pb = new ProcessBuilder(command, "-P", savePath, "-o", fileName, videoUrl);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
 
                 logger.debug("Executing command: {}", command);
