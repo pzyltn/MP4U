@@ -15,7 +15,13 @@
 
     <Label fx:id="appTitle" text="MP4U Media Downloader" />
    <TextField id="urlField" fx:id="urlField" promptText="YouTube URL" />
-   <HBox>
+   <VBox spacing="5.0">
+      <children>
+         <Label text="Save as (optional):" />
+         <TextField fx:id="fileNameField" promptText="Leave blank for default title" />
+      </children>
+   </VBox>
+   <HBox spacing="5.0">
       <children>
          <TextField fx:id="downloadFolderField" editable="false" promptText="Set download location..." />
          <Button mnemonicParsing="false" onAction="#onBrowseClick" text="Browse" />
