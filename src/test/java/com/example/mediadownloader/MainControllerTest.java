@@ -27,6 +27,7 @@ public class MainControllerTest {
 
     private MainController controller;
     private TextField urlField;
+    private TextField fileNameField;
     private TextField downloadFolderField;
     private ProgressBar progressBar;
     private Label statusLabel;
@@ -47,6 +48,7 @@ public class MainControllerTest {
         stage.show();
 
         urlField = (TextField) scene.lookup("#urlField");
+        fileNameField = (TextField) scene.lookup("#fileNameField");
         downloadFolderField = (TextField) scene.lookup("#downloadFolderField");
         progressBar = (ProgressBar) scene.lookup("#progressBar");
         statusLabel = (Label) scene.lookup("#statusLabel");
@@ -178,5 +180,35 @@ public class MainControllerTest {
 
         WaitForAsyncUtils.waitForFxEvents();
         assertNotNull(urlField.getText());
+    }
+
+    @Test
+    public void testFileName_ValidInput_IsAccepted() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#fileNameField").write("VacationVideo2026");
+
+        assertEquals("VacationVideo2026", fileNameField.getText(),
+                "Valid filenames should not be altered.");
+    }
+
+    @Test
+    public void testFileName_IllegalCharacters_AreSanitizedInstantly() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#fileNameField").write("My:Awesome<Video>/Is*Cool?");
+
+        assertEquals("MyAwesomeVideoIsCool", fileNameField.getText(),
+                "Illegal characters should be stripped from the input.");
+    }
+
+    @Test
+    public void testFileName_EmptyInput_IsAllowed() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#fileNameField").write("Temp").eraseText(4);
+
+        assertEquals("", fileNameField.getText(),
+                "The file name field should allow empty input.");
     }
 }
