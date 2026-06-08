@@ -135,7 +135,7 @@ public class MainController {
                 String command = getBinaryPath();
 
                 // make call to the executable
-                ProcessBuilder pb = new ProcessBuilder(command, "-P", savePath, "-o", fileName, videoUrl);
+                ProcessBuilder pb = new ProcessBuilder(command, "-P", savePath, "-o", output, videoUrl);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
 
                 logger.debug("Executing command: {}", command);
