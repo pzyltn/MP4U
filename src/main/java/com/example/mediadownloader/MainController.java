@@ -79,8 +79,9 @@ public class MainController {
         formatComboBox.setValue(savedFormat);
 
         formatComboBox.setOnAction(event -> {
+            logger.info("Selected format: {}", formatComboBox.getValue());
             prefs.put(PREF_FORMAT, formatComboBox.getValue());
-            logger.debug("Saved format preference: {}", formatComboBox.getValue());
+            logger.debug("Saved format to preferences.");
         });
     }
 
@@ -173,7 +174,7 @@ public class MainController {
                 } else {
                     logger.info("Configuring yt-dlp for audio and video (MP4)");
                     commandList.add("-f");
-                    commandList.add("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best");
+                    commandList.add("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"); // ensure mp4 is produced
                 }
 
                 commandList.add(videoUrl);
