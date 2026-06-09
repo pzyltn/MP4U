@@ -3,6 +3,7 @@ package com.example.mediadownloader;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
@@ -29,6 +30,7 @@ public class MainControllerTest {
     private TextField urlField;
     private TextField fileNameField;
     private TextField downloadFolderField;
+    private ComboBox<String> formatComboBox;
     private ProgressBar progressBar;
     private Label statusLabel;
     private Preferences prefs;
@@ -50,6 +52,7 @@ public class MainControllerTest {
         urlField = (TextField) scene.lookup("#urlField");
         fileNameField = (TextField) scene.lookup("#fileNameField");
         downloadFolderField = (TextField) scene.lookup("#downloadFolderField");
+        formatComboBox = (ComboBox<String>) scene.lookup("#formatComboBox");
         progressBar = (ProgressBar) scene.lookup("#progressBar");
         statusLabel = (Label) scene.lookup("#statusLabel");
     }
@@ -210,5 +213,30 @@ public class MainControllerTest {
 
         assertEquals("", fileNameField.getText(),
                 "The file name field should allow empty input.");
+    }
+
+    @Test
+    public void testFormatChooser_ContainsCorrectOptions() {
+        assertTrue(formatComboBox.getItems().contains("Video (MP4)"),
+                "Dropdown should contain the Video option.");
+        assertTrue(formatComboBox.getItems().contains("Audio (MP3)"),
+                "Dropdown should contain the Audio option.");
+    }
+
+    @Test
+    public void testFormatChooser_SelectionSavesToPreferences() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#formatComboBox").clickOn("Audio (MP3)");
+        assertEquals("Audio (MP3)", formatComboBox.getValue(),
+                "The combo box UI should display the newly selected format (MP3).");
+        robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
+        assertEquals("Video (MP4)", formatComboBox.getValue(),
+                "The combo box UI should display the newly selected format (MP4).");
+
+        java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(MainController.class);
+        robot.clickOn("#formatComboBox").clickOn("Audio (MP3)");
+        assertEquals("Audio (MP3)", prefs.get("last_format", ""),
+                "The saved preference should update when a new format is selected.");
     }
 }

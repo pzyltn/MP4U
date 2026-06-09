@@ -2,11 +2,7 @@ package com.example.mediadownloader;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
+import javafx.scene.control.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
@@ -15,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.prefs.Preferences;
@@ -26,12 +23,18 @@ public class MainController {
     @FXML private TextField urlField;
     @FXML private TextField fileNameField;
     @FXML private TextField downloadFolderField;
+    @FXML private ComboBox<String> formatComboBox;
     @FXML private ProgressBar progressBar;
     @FXML private Label statusLabel;
+
+    // combo box options
+    private static final String FORMAT_VIDEO = "Video (MP4)";
+    private static final String FORMAT_AUDIO = "Audio (MP3)";
 
     // maintain user prefs
     private Preferences prefs = Preferences.userNodeForPackage(MainController.class);
     private static final String PREF_DOWNLOAD_FOLDER = "last_download_folder";
+    private static final String PREF_FORMAT = "last_format";
 
     // regex to extract %s
     private static final Pattern PERCENT_PATTERN = Pattern.compile("\\[download\\]\\s+(\\d+(\\.\\d+)?)%");
@@ -67,6 +70,19 @@ public class MainController {
         }
 
         downloadFolderField.setText(savedPath);
+
+        // format selection
+        formatComboBox.getItems().addAll(FORMAT_VIDEO, FORMAT_AUDIO);
+
+        // if pref not set, use video as default
+        String savedFormat = prefs.get(PREF_FORMAT, FORMAT_VIDEO);
+        formatComboBox.setValue(savedFormat);
+
+        formatComboBox.setOnAction(event -> {
+            logger.info("Selected format: {}", formatComboBox.getValue());
+            prefs.put(PREF_FORMAT, formatComboBox.getValue());
+            logger.debug("Saved format to preferences.");
+        });
     }
 
     @FXML
@@ -133,9 +149,37 @@ public class MainController {
 
                 // determine correct path to executable
                 String command = getBinaryPath();
+                String ffmpeg = getFfmpegPath();
 
-                // make call to the executable
-                ProcessBuilder pb = new ProcessBuilder(command, "-P", savePath, "-o", output, videoUrl);
+                boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
+
+                // build command
+                ArrayList<String> commandList = new ArrayList<String>();
+                commandList.add(command);
+                commandList.add("-P");
+                commandList.add(savePath);
+                commandList.add("-o");
+                commandList.add(output);
+                commandList.add("--ffmpeg-location");
+                commandList.add(getFfmpegPath());
+
+                if (isAudioOnly) {
+                    logger.info("Configuring yt-dlp for audio only (MP3)");
+                    commandList.add("-x"); // automatically downloads ONLY audio
+                    commandList.add("--audio-format");
+                    commandList.add("mp3");
+                    commandList.add("--audio-quality");
+                    commandList.add("0"); // best bitrate
+
+                } else {
+                    logger.info("Configuring yt-dlp for audio and video (MP4)");
+                    commandList.add("-f");
+                    commandList.add("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"); // ensure mp4 is produced
+                }
+
+                commandList.add(videoUrl);
+
+                ProcessBuilder pb = new ProcessBuilder(commandList);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
 
                 logger.debug("Executing command: {}", command);
@@ -211,6 +255,16 @@ public class MainController {
             return Paths.get(System.getenv("APPDATA"), "MP4U", "bin", "yt-dlp.exe").toString();
         } else {
             return Paths.get(userHome, "Library", "Application Support", "MP4U", "bin", "yt-dlp").toString();
+        }
+    }
+
+    private String getFfmpegPath() {
+        String os = System.getProperty("os.name").toLowerCase();
+        String userHome = System.getProperty("user.home");
+        if (os.contains("win")) {
+            return Paths.get(System.getenv("APPDATA"), "MP4U", "bin", "ffmpeg.exe").toString();
+        } else {
+            return Paths.get(userHome, "Library", "Application Support", "MP4U", "bin", "ffmpeg").toString();
         }
     }
 }
