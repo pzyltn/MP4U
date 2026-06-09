@@ -134,10 +134,10 @@ public class MainController {
 
         if (fileName.isEmpty()){
             logger.info("No custom file name provided. Using default title.");
-            output = savePath + File.separator + "%(title)s.%(ext)s";
+            output = "%(title)s.%(ext)s";
         } else {
             logger.info("Using custom file name: {}", fileName);
-            output = savePath + File.separator + fileName + ".%(ext)s";
+            output = fileName + ".%(ext)s";
         }
 
         updateProgress(0, "Starting download...");
