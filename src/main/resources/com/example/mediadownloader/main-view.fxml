@@ -35,6 +35,18 @@
          <ComboBox fx:id="formatComboBox" />
       </children>
    </HBox>
+   <HBox alignment="CENTER" spacing="5.0">
+      <children>
+         <Text strokeType="OUTSIDE" strokeWidth="0.0" text="Video quality:" />
+         <ComboBox fx:id="videoQualityComboBox" />
+      </children>
+   </HBox>
+   <HBox alignment="CENTER" layoutX="30.0" layoutY="396.0" spacing="5.0">
+      <children>
+         <Text strokeType="OUTSIDE" strokeWidth="0.0" text="Audio quality:" />
+         <ComboBox fx:id="audioQualityComboBox" />
+      </children>
+   </HBox>
     <Button id="downloadButton" fx:id="downloadButton" accessibleText="Download Button" onAction="#onDownloadClick" text="Download" />
    <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
    <Label fx:id="statusLabel" text="Progress" />
