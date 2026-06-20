@@ -24,17 +24,31 @@ public class MainController {
     @FXML private TextField fileNameField;
     @FXML private TextField downloadFolderField;
     @FXML private ComboBox<String> formatComboBox;
+    @FXML private ComboBox<String> videoQualityComboBox;
+    @FXML private ComboBox<String> audioQualityComboBox;
     @FXML private ProgressBar progressBar;
     @FXML private Label statusLabel;
 
-    // combo box options
+    // format combo box options
     private static final String FORMAT_VIDEO = "Video (MP4)";
     private static final String FORMAT_AUDIO = "Audio (MP3)";
+
+    // video quality combo box options
+    private static final String VID_BEST = "Best (4K)";
+    private static final String VID_HD = "HD (1080p)";
+    private static final String VID_STANDARD = "Standard (720p)";
+    private static final String VID_LOW = "Low (480p)";
+
+    // audio quality combo box options
+    private static final String AUD_BEST = "Best (160kbps)";
+    private static final String AUD_STANDARD = "Standard (128kbps)";
 
     // maintain user prefs
     private Preferences prefs = Preferences.userNodeForPackage(MainController.class);
     private static final String PREF_DOWNLOAD_FOLDER = "last_download_folder";
     private static final String PREF_FORMAT = "last_format";
+    private static final String PREF_VID_QUALITY = "last_vid_quality";
+    private static final String PREF_AUD_QUALITY = "last_aud_quality";
 
     // regex to extract %s
     private static final Pattern PERCENT_PATTERN = Pattern.compile("\\[download\\]\\s+(\\d+(\\.\\d+)?)%");
@@ -73,16 +87,43 @@ public class MainController {
 
         // format selection
         formatComboBox.getItems().addAll(FORMAT_VIDEO, FORMAT_AUDIO);
+        videoQualityComboBox.getItems().addAll(VID_BEST, VID_HD, VID_STANDARD, VID_LOW);
+        audioQualityComboBox.getItems().addAll(AUD_BEST, AUD_STANDARD);
 
         // if pref not set, use video as default
         String savedFormat = prefs.get(PREF_FORMAT, FORMAT_VIDEO);
+        String savedVidQuality = prefs.get(PREF_VID_QUALITY, VID_BEST);
+        String savedAudQuality = prefs.get(PREF_AUD_QUALITY, AUD_BEST);
         formatComboBox.setValue(savedFormat);
+        videoQualityComboBox.setValue(savedVidQuality);
+        audioQualityComboBox.setValue(savedAudQuality);
 
         formatComboBox.setOnAction(event -> {
             logger.info("Selected format: {}", formatComboBox.getValue());
             prefs.put(PREF_FORMAT, formatComboBox.getValue());
+            updateVideoQualitySelection();
             logger.debug("Saved format to preferences.");
         });
+
+        videoQualityComboBox.setOnAction(event -> {
+            logger.info("Selected video quality: {}", videoQualityComboBox.getValue());
+            prefs.put(PREF_VID_QUALITY, videoQualityComboBox.getValue());
+            logger.debug("Saved video quality to preferences.");
+        });
+
+        audioQualityComboBox.setOnAction(event -> {
+            logger.info("Selected audio quality: {}", audioQualityComboBox.getValue());
+            prefs.put(PREF_AUD_QUALITY, audioQualityComboBox.getValue());
+            logger.debug("Saved audio quality to preferences.");
+        });
+
+        updateVideoQualitySelection();
+    }
+
+    private void updateVideoQualitySelection() {
+        boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
+        videoQualityComboBox.setDisable(isAudioOnly);
+        logger.debug(String.format("%s video quality selection", isAudioOnly ? "Disabled" : "Enabled"));
     }
 
     @FXML
@@ -147,42 +188,16 @@ public class MainController {
             try {
                 logger.info("Preparing to download: {} to {}", videoUrl, savePath);
 
-                // determine correct path to executable
-                String command = getBinaryPath();
-                String ffmpeg = getFfmpegPath();
-
                 boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
+                String selectedVidQuality = videoQualityComboBox.getValue();
+                String selectedAudQuality = audioQualityComboBox.getValue();
 
-                // build command
-                ArrayList<String> commandList = new ArrayList<String>();
-                commandList.add(command);
-                commandList.add("-P");
-                commandList.add(savePath);
-                commandList.add("-o");
-                commandList.add(output);
-                commandList.add("--ffmpeg-location");
-                commandList.add(getFfmpegPath());
-
-                if (isAudioOnly) {
-                    logger.info("Configuring yt-dlp for audio only (MP3)");
-                    commandList.add("-x"); // automatically downloads ONLY audio
-                    commandList.add("--audio-format");
-                    commandList.add("mp3");
-                    commandList.add("--audio-quality");
-                    commandList.add("0"); // best bitrate
-
-                } else {
-                    logger.info("Configuring yt-dlp for audio and video (MP4)");
-                    commandList.add("-f");
-                    commandList.add("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"); // ensure mp4 is produced
-                }
-
-                commandList.add(videoUrl);
+                ArrayList<String> commandList = constructCommand(savePath, output, isAudioOnly, selectedVidQuality, selectedAudQuality, videoUrl);
 
                 ProcessBuilder pb = new ProcessBuilder(commandList);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
 
-                logger.debug("Executing command: {}", command);
+                logger.debug("Executing command: {}", commandList);
                 Process process = pb.start();
 
                 // read output from yt-dlp and send it to logger & UI
@@ -226,6 +241,46 @@ public class MainController {
                 showErrorAlert("Critical Error", "An unexpected error occurred: " + e.getMessage());
             }
         }).start();
+    }
+
+    public ArrayList<String> constructCommand(String savePath, String output, boolean isAudioOnly, String selectedVidQuality, String selectedAudQuality, String videoUrl) {
+        // build command
+        ArrayList<String> commandList = new ArrayList<String>();
+        commandList.add(getBinaryPath());
+        commandList.add("-P");
+        commandList.add(savePath);
+        commandList.add("-o");
+        commandList.add(output);
+        commandList.add("--ffmpeg-location");
+        commandList.add(getFfmpegPath());
+
+        if (isAudioOnly) {
+            logger.info("Configuring yt-dlp for audio only (MP3) with {} quality", selectedAudQuality);
+            commandList.add("-f");
+            commandList.add("bestaudio"); // pull best, shrink later if requested
+            commandList.add("-x"); // automatically downloads ONLY audio
+            commandList.add("--audio-format");
+            commandList.add("mp3");
+            commandList.add("--audio-quality");
+            commandList.add(selectedAudQuality.equals(AUD_BEST) ? "0" : "5"); // 0 is best VBR, 5 comes out to about 128kbps
+        } else {
+            logger.info("Configuring yt-dlp for audio and video (MP4) with {} and {} quality", selectedVidQuality, selectedAudQuality);
+            String maxHeight = "2160";
+            if (selectedVidQuality.equals(VID_HD)) maxHeight = "1080";
+            else if (selectedVidQuality.equals(VID_STANDARD)) maxHeight = "720";
+            else if (selectedVidQuality.equals(VID_LOW)) maxHeight = "480";
+
+            String audioFilter = selectedAudQuality.equals(AUD_STANDARD) ? "[abr<=128]" : "";
+
+            String formatStr = String.format("bestvideo[height<=%s][ext=mp4]+bestaudio%s[ext=m4a]/best[height<=%s][ext=mp4]/best", maxHeight, audioFilter, maxHeight);
+
+            commandList.add("-f");
+            commandList.add(formatStr);
+        }
+
+        commandList.add(videoUrl);
+
+        return commandList;
     }
 
     // update the progress bar & status tracker
