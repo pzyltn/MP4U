@@ -101,7 +101,7 @@ public class MainController {
         formatComboBox.setOnAction(event -> {
             logger.info("Selected format: {}", formatComboBox.getValue());
             prefs.put(PREF_FORMAT, formatComboBox.getValue());
-            updateVideoDropdownVisibility();
+            updateVideoQualitySelection();
             logger.debug("Saved format to preferences.");
         });
 
@@ -117,10 +117,10 @@ public class MainController {
             logger.debug("Saved audio quality to preferences.");
         });
 
-        updateVideoDropdownVisibility();
+        updateVideoQualitySelection();
     }
 
-    private void updateVideoDropdownVisibility() {
+    private void updateVideoQualitySelection() {
         boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
         videoQualityComboBox.setDisable(isAudioOnly);
         logger.debug(String.format("%s video quality selection", isAudioOnly ? "Disabled" : "Enabled"));
@@ -188,54 +188,16 @@ public class MainController {
             try {
                 logger.info("Preparing to download: {} to {}", videoUrl, savePath);
 
-                // determine correct path to executable
-                String command = getBinaryPath();
-                String ffmpeg = getFfmpegPath();
-
                 boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
                 String selectedVidQuality = videoQualityComboBox.getValue();
                 String selectedAudQuality = audioQualityComboBox.getValue();
 
-                // build command
-                ArrayList<String> commandList = new ArrayList<String>();
-                commandList.add(command);
-                commandList.add("-P");
-                commandList.add(savePath);
-                commandList.add("-o");
-                commandList.add(output);
-                commandList.add("--ffmpeg-location");
-                commandList.add(getFfmpegPath());
-
-                if (isAudioOnly) {
-                    logger.info("Configuring yt-dlp for audio only (MP3) with {} quality", selectedAudQuality);
-                    commandList.add("-f");
-                    commandList.add("bestaudio"); // pull best, shrink later if requested
-                    commandList.add("-x"); // automatically downloads ONLY audio
-                    commandList.add("--audio-format");
-                    commandList.add("mp3");
-                    commandList.add("--audio-quality");
-                    commandList.add(selectedAudQuality.equals(AUD_BEST) ? "0" : "5"); // 0 is best VBR, 5 comes out to about 128kbps
-                } else {
-                    logger.info("Configuring yt-dlp for audio and video (MP4) with {} and {} quality", selectedVidQuality, selectedAudQuality);
-                    String maxHeight = "2160";
-                    if (selectedVidQuality.equals(VID_HD)) maxHeight = "1080";
-                    else if (selectedVidQuality.equals(VID_STANDARD)) maxHeight = "720";
-                    else if (selectedVidQuality.equals(VID_LOW)) maxHeight = "480";
-
-                    String audioFilter = selectedAudQuality.equals(AUD_STANDARD) ? "[abr<=128]" : "";
-
-                    String formatStr = String.format("bestvideo[height<=%s][ext=mp4]+bestaudio%s[ext=m4a]/best[height<=%s][ext=mp4]/best", maxHeight, audioFilter, maxHeight);
-
-                    commandList.add("-f");
-                    commandList.add(formatStr);
-                }
-
-                commandList.add(videoUrl);
+                ArrayList<String> commandList = constructCommand(savePath, output, isAudioOnly, selectedVidQuality, selectedAudQuality, videoUrl);
 
                 ProcessBuilder pb = new ProcessBuilder(commandList);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
 
-                logger.debug("Executing command: {}", command);
+                logger.debug("Executing command: {}", commandList);
                 Process process = pb.start();
 
                 // read output from yt-dlp and send it to logger & UI
@@ -279,6 +241,46 @@ public class MainController {
                 showErrorAlert("Critical Error", "An unexpected error occurred: " + e.getMessage());
             }
         }).start();
+    }
+
+    public ArrayList<String> constructCommand(String savePath, String output, boolean isAudioOnly, String selectedVidQuality, String selectedAudQuality, String videoUrl) {
+        // build command
+        ArrayList<String> commandList = new ArrayList<String>();
+        commandList.add(getBinaryPath());
+        commandList.add("-P");
+        commandList.add(savePath);
+        commandList.add("-o");
+        commandList.add(output);
+        commandList.add("--ffmpeg-location");
+        commandList.add(getFfmpegPath());
+
+        if (isAudioOnly) {
+            logger.info("Configuring yt-dlp for audio only (MP3) with {} quality", selectedAudQuality);
+            commandList.add("-f");
+            commandList.add("bestaudio"); // pull best, shrink later if requested
+            commandList.add("-x"); // automatically downloads ONLY audio
+            commandList.add("--audio-format");
+            commandList.add("mp3");
+            commandList.add("--audio-quality");
+            commandList.add(selectedAudQuality.equals(AUD_BEST) ? "0" : "5"); // 0 is best VBR, 5 comes out to about 128kbps
+        } else {
+            logger.info("Configuring yt-dlp for audio and video (MP4) with {} and {} quality", selectedVidQuality, selectedAudQuality);
+            String maxHeight = "2160";
+            if (selectedVidQuality.equals(VID_HD)) maxHeight = "1080";
+            else if (selectedVidQuality.equals(VID_STANDARD)) maxHeight = "720";
+            else if (selectedVidQuality.equals(VID_LOW)) maxHeight = "480";
+
+            String audioFilter = selectedAudQuality.equals(AUD_STANDARD) ? "[abr<=128]" : "";
+
+            String formatStr = String.format("bestvideo[height<=%s][ext=mp4]+bestaudio%s[ext=m4a]/best[height<=%s][ext=mp4]/best", maxHeight, audioFilter, maxHeight);
+
+            commandList.add("-f");
+            commandList.add(formatStr);
+        }
+
+        commandList.add(videoUrl);
+
+        return commandList;
     }
 
     // update the progress bar & status tracker
