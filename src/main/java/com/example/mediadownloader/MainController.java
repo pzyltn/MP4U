@@ -41,7 +41,7 @@ public class MainController {
 
     // audio quality combo box options
     private static final String AUD_BEST = "Best (160kbps)";
-    private static final String AUD_STANDARD = "Standard (128 kbps)";
+    private static final String AUD_STANDARD = "Standard (128kbps)";
 
     // maintain user prefs
     private Preferences prefs = Preferences.userNodeForPackage(MainController.class);

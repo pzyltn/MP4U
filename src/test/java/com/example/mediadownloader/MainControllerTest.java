@@ -17,6 +17,7 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.prefs.Preferences;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,6 +32,8 @@ public class MainControllerTest {
     private TextField fileNameField;
     private TextField downloadFolderField;
     private ComboBox<String> formatComboBox;
+    private ComboBox<String> videoQualityComboBox;
+    private ComboBox<String> audioQualityComboBox;
     private ProgressBar progressBar;
     private Label statusLabel;
     private Preferences prefs;
@@ -53,6 +56,8 @@ public class MainControllerTest {
         fileNameField = (TextField) scene.lookup("#fileNameField");
         downloadFolderField = (TextField) scene.lookup("#downloadFolderField");
         formatComboBox = (ComboBox<String>) scene.lookup("#formatComboBox");
+        videoQualityComboBox = (ComboBox<String>) scene.lookup("#videoQualityComboBox");
+        audioQualityComboBox = (ComboBox<String>) scene.lookup("#audioQualityComboBox");
         progressBar = (ProgressBar) scene.lookup("#progressBar");
         statusLabel = (Label) scene.lookup("#statusLabel");
     }
@@ -237,6 +242,78 @@ public class MainControllerTest {
         java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(MainController.class);
         robot.clickOn("#formatComboBox").clickOn("Audio (MP3)");
         assertEquals("Audio (MP3)", prefs.get("last_format", ""),
-                "The saved preference should update when a new format is selected.");
+                "The saved preference should update to Audio (MP3).");
+    }
+
+    @Test
+    public void testQualityDropdowns_ContainCorrectOptions() {
+        // video quality options correct
+        assertTrue(videoQualityComboBox.getItems().contains("Best (4K)"));
+        assertTrue(videoQualityComboBox.getItems().contains("HD (1080p)"));
+        assertTrue(videoQualityComboBox.getItems().contains("Standard (720p)"));
+        assertTrue(videoQualityComboBox.getItems().contains("Low (480p)"));
+
+        // audio quality options correct
+        assertTrue(audioQualityComboBox.getItems().contains("Best (160kbps)"));
+        assertTrue(audioQualityComboBox.getItems().contains("Standard (128kbps)"));
+    }
+
+    @Test
+    public void testQualityDropdowns_SelectionSavesToPreferences() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+        java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(MainController.class);
+
+        // video quality selection saves to prefs
+        robot.clickOn("#videoQualityComboBox").clickOn("HD (1080p)");
+        assertEquals("HD (1080p)", videoQualityComboBox.getValue());
+        assertEquals("HD (1080p)", prefs.get("last_vid_quality", ""),
+                "The saved preference should update to HD (1080p).");
+
+        // audio quality selection saves to prefs
+        robot.clickOn("#audioQualityComboBox").clickOn("Standard (128kbps)");
+        assertEquals("Standard (128kbps)", audioQualityComboBox.getValue());
+        assertEquals("Standard (128kbps)", prefs.get("last_aud_quality", ""),
+                "The saved preference should update to Standard (128kbps).");
+    }
+
+    @Test
+    public void testFormatSelection_EnablesAndDisablesVideoQuality() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
+        assertFalse(videoQualityComboBox.isDisable(),
+                "Video quality selection should be enabled when downloading a video.");
+
+        robot.clickOn("#formatComboBox").clickOn("Audio (MP3)");
+        assertTrue(videoQualityComboBox.isDisable(),
+                "Video quality selection should be disabled when downloading audio only.");
+
+        robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
+        assertFalse(videoQualityComboBox.isDisable(),
+                "Video quality selection should be re-enabled when switching back to video mode.");
+    }
+
+    @Test
+    public void testAudioCommandBuilder() {
+        MainController controller = new MainController();
+        List<String> result = controller.constructCommand(
+                "/downloads", "test.mp3", true,
+                "HD (1080p)", "Best (160kbps)", "https://youtube.com"
+        );
+
+        assertTrue(result.contains("-x"), "Audio downloads must include the -x flag.");
+        assertTrue(result.contains("0"), "Best audio must use VBR level 0.");
+    }
+
+    @Test
+    public void testVideoCommandBuilder(){
+        MainController controller = new MainController();
+        List<String> result = controller.constructCommand(
+                "/downloads", "test.mp3", false,
+                "HD (1080p)", "Standard (128kbps)", "https://youtube.com"
+        );
+
+        assertTrue(result.contains("bestvideo[height<=1080][ext=mp4]+bestaudio[abr<=128][ext=m4a]/best[height<=1080][ext=mp4]/best"),
+                "Video download should specify HD quality (1080p) and standard audio (128kbps), with fallback.");
     }
 }
