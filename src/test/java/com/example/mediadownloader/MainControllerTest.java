@@ -7,6 +7,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import org.controlsfx.control.SearchableComboBox;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +35,7 @@ public class MainControllerTest {
     private ComboBox<String> formatComboBox;
     private ComboBox<String> videoQualityComboBox;
     private ComboBox<String> audioQualityComboBox;
+    private SearchableComboBox<String> captionsComboBox;
     private ProgressBar progressBar;
     private Label statusLabel;
     private Preferences prefs;
@@ -58,6 +60,7 @@ public class MainControllerTest {
         formatComboBox = (ComboBox<String>) scene.lookup("#formatComboBox");
         videoQualityComboBox = (ComboBox<String>) scene.lookup("#videoQualityComboBox");
         audioQualityComboBox = (ComboBox<String>) scene.lookup("#audioQualityComboBox");
+        captionsComboBox = (SearchableComboBox<String>) scene.lookup("#captionsComboBox");
         progressBar = (ProgressBar) scene.lookup("#progressBar");
         statusLabel = (Label) scene.lookup("#statusLabel");
     }
@@ -277,7 +280,7 @@ public class MainControllerTest {
     }
 
     @Test
-    public void testFormatSelection_EnablesAndDisablesVideoQuality() {
+    public void testQualityDropdowns_EnableAndDisable() {
         org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
 
         robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
@@ -294,11 +297,68 @@ public class MainControllerTest {
     }
 
     @Test
+    public void testCaptionsDropdown_ContainsCorrectOptions() {
+        assertTrue(captionsComboBox.getItems().contains("None"));
+        assertTrue(captionsComboBox.getItems().contains("Afrikaans")); // first in language tree map
+        assertTrue(captionsComboBox.getItems().contains("Javanese")); // kinda mid in language tree map
+        assertTrue(captionsComboBox.getItems().contains("Zulu")); // last in language tree map
+    }
+
+    @Test
+    public void testCaptionsDropdown_EnablesAndDisables() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
+        assertFalse(captionsComboBox.isDisable(),
+                "Captions dropdown should be enabled when downloading a video.");
+
+        robot.clickOn("#formatComboBox").clickOn("Audio (MP3)");
+        assertTrue(captionsComboBox.isDisable(),
+                "Captions dropdown should be disabled when downloading audio only.");
+
+        robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
+        assertFalse(captionsComboBox.isDisable(),
+                "Captions dropdown should be re-enabled when switching back to video mode.");
+    }
+
+    @Test
+    public void testCaptionsDropdown_IsSearchable() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
+
+        robot.clickOn("#captionsComboBox").write("span").write("\n");
+        assertTrue(captionsComboBox.getValue().equals("Spanish"),
+                "Combo box should show Spanish is selected.");
+    }
+
+    @Test
+    public void testCaptionsDropdown_IsClickable() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+
+        robot.clickOn("#formatComboBox").clickOn("Video (MP4)");
+
+        robot.clickOn("#captionsComboBox").clickOn("Afrikaans");
+        assertTrue(captionsComboBox.getValue().equals("Afrikaans"),
+                "Combo box should show Afrikaans is selected.");
+    }
+
+    @Test
+    public void testCaptionsDropdown_SavesPreferences() {
+        org.testfx.api.FxRobot robot = new org.testfx.api.FxRobot();
+        java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(MainController.class);
+
+        robot.clickOn("#captionsComboBox").clickOn("None");
+        robot.clickOn("#captionsComboBox").clickOn("Afrikaans");
+        assertTrue(captionsComboBox.getValue().equals(prefs.get("last_caption_lang", "")),
+                "The saved preference should update to Afrikaans.");
+    }
+
+    @Test
     public void testAudioCommandBuilder() {
-        MainController controller = new MainController();
         List<String> result = controller.constructCommand(
                 "/downloads", "test.mp3", true,
-                "HD (1080p)", "Best (160kbps)", "https://youtube.com"
+                "HD (1080p)", "Best (160kbps)", "None", "https://youtube.com"
         );
 
         assertTrue(result.contains("-x"), "Audio downloads must include the -x flag.");
@@ -307,13 +367,24 @@ public class MainControllerTest {
 
     @Test
     public void testVideoCommandBuilder(){
-        MainController controller = new MainController();
         List<String> result = controller.constructCommand(
                 "/downloads", "test.mp3", false,
-                "HD (1080p)", "Standard (128kbps)", "https://youtube.com"
+                "HD (1080p)", "Standard (128kbps)", "None", "https://youtube.com"
         );
 
         assertTrue(result.contains("bestvideo[height<=1080][ext=mp4]+bestaudio[abr<=128][ext=m4a]/best[height<=1080][ext=mp4]/best"),
                 "Video download should specify HD quality (1080p) and standard audio (128kbps), with fallback.");
+    }
+
+    @Test
+    public void testCaptionsCommandBuilder(){
+        List<String> result = controller.constructCommand(
+                "/downloads", "test.mp3", false,
+                "HD (1080p)", "Standard (128kbps)",
+                "Spanish", "https://youtube.com"
+        );
+
+        assertTrue(result.contains("es"),
+                "Downloads with captions include the applicable language flag.");
     }
 }

@@ -47,6 +47,12 @@
          <ComboBox fx:id="audioQualityComboBox" />
       </children>
    </HBox>
+   <HBox alignment="CENTER" layoutX="30.0" layoutY="319.0" spacing="5.0">
+      <children>
+         <Text strokeType="OUTSIDE" strokeWidth="0.0" text="Captions:" />
+         <HBox fx:id="captionsContainer" />
+      </children>
+   </HBox>
     <Button id="downloadButton" fx:id="downloadButton" accessibleText="Download Button" onAction="#onDownloadClick" text="Download" />
    <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" />
    <Label fx:id="statusLabel" text="Progress" />
