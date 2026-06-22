@@ -3,8 +3,10 @@ package com.example.mediadownloader;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import org.controlsfx.control.SearchableComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
@@ -12,6 +14,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.prefs.Preferences;
@@ -26,8 +29,12 @@ public class MainController {
     @FXML private ComboBox<String> formatComboBox;
     @FXML private ComboBox<String> videoQualityComboBox;
     @FXML private ComboBox<String> audioQualityComboBox;
+    @FXML private HBox captionsContainer;
     @FXML private ProgressBar progressBar;
     @FXML private Label statusLabel;
+
+    private SearchableComboBox<String> captionsComboBox;
+    private final TreeMap<String, String> languageMap = new TreeMap<>();
 
     // format combo box options
     private static final String FORMAT_VIDEO = "Video (MP4)";
@@ -49,6 +56,7 @@ public class MainController {
     private static final String PREF_FORMAT = "last_format";
     private static final String PREF_VID_QUALITY = "last_vid_quality";
     private static final String PREF_AUD_QUALITY = "last_aud_quality";
+    private static final String PREF_CAPTION_LANG = "last_caption_lang";
 
     // regex to extract %s
     private static final Pattern PERCENT_PATTERN = Pattern.compile("\\[download\\]\\s+(\\d+(\\.\\d+)?)%");
@@ -90,18 +98,33 @@ public class MainController {
         videoQualityComboBox.getItems().addAll(VID_BEST, VID_HD, VID_STANDARD, VID_LOW);
         audioQualityComboBox.getItems().addAll(AUD_BEST, AUD_STANDARD);
 
-        // if pref not set, use video as default
+        // caption setup
+        captionsComboBox = new SearchableComboBox<>();
+        captionsComboBox.setId("captionsComboBox");
+        captionsComboBox.setPromptText("Type to search...");
+        captionsContainer.getChildren().add(captionsComboBox);
+
+        setUpLanguageMap();
+
+        captionsComboBox.getItems().add("None");
+        captionsComboBox.getItems().addAll(languageMap.keySet());
+        captionsComboBox.setValue("None");
+
+        // if pref not set, use defaults
         String savedFormat = prefs.get(PREF_FORMAT, FORMAT_VIDEO);
         String savedVidQuality = prefs.get(PREF_VID_QUALITY, VID_BEST);
         String savedAudQuality = prefs.get(PREF_AUD_QUALITY, AUD_BEST);
+        String savedCaptionLang = prefs.get(PREF_CAPTION_LANG, "None");
+
         formatComboBox.setValue(savedFormat);
         videoQualityComboBox.setValue(savedVidQuality);
         audioQualityComboBox.setValue(savedAudQuality);
+        captionsComboBox.setValue(savedCaptionLang);
 
         formatComboBox.setOnAction(event -> {
             logger.info("Selected format: {}", formatComboBox.getValue());
             prefs.put(PREF_FORMAT, formatComboBox.getValue());
-            updateVideoQualitySelection();
+            updateComboBoxVisibility();
             logger.debug("Saved format to preferences.");
         });
 
@@ -117,13 +140,92 @@ public class MainController {
             logger.debug("Saved audio quality to preferences.");
         });
 
-        updateVideoQualitySelection();
+        captionsComboBox.valueProperty().addListener((observable, newVal, oldVal) -> {
+            if (newVal != null && !newVal.equals(oldVal) && !newVal.equals(prefs.get(PREF_CAPTION_LANG, "null"))) {
+                logger.info("Selected caption language: {}", newVal);
+                prefs.put(PREF_CAPTION_LANG, newVal);
+                logger.debug("Saved caption language to preferences.");
+            }
+        });
+
+        updateComboBoxVisibility();
     }
 
-    private void updateVideoQualitySelection() {
+    private void updateComboBoxVisibility() {
         boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
         videoQualityComboBox.setDisable(isAudioOnly);
-        logger.debug(String.format("%s video quality selection", isAudioOnly ? "Disabled" : "Enabled"));
+        captionsComboBox.setDisable(isAudioOnly);
+        logger.debug(String.format("%s video quality and caption language selection", isAudioOnly ? "Disabled" : "Enabled"));
+    }
+
+    private void setUpLanguageMap() {
+        languageMap.put("Afrikaans", "af");
+        languageMap.put("Albanian", "sq");
+        languageMap.put("Amharic", "am");
+        languageMap.put("Arabic", "ar");
+        languageMap.put("Armenian", "hy");
+        languageMap.put("Azerbaijani", "az");
+        languageMap.put("Basque", "eu");
+        languageMap.put("Belarusian", "be");
+        languageMap.put("Bengali", "bn");
+        languageMap.put("Bulgarian", "bg");
+        languageMap.put("Burmese", "my");
+        languageMap.put("Cantonese/Hong Kong", "zh-HK");
+        languageMap.put("Central Khmer", "km");
+        languageMap.put("Chinese", "zh");
+        languageMap.put("Czech", "cs");
+        languageMap.put("Danish", "da");
+        languageMap.put("Dutch", "nl");
+        languageMap.put("English", "en");
+        languageMap.put("Estonian", "et");
+        languageMap.put("Farsi", "fa");
+        languageMap.put("Filipino", "tl"); // Tagalog
+        languageMap.put("Finnish", "fi");
+        languageMap.put("French", "fr");
+        languageMap.put("Galician", "gl");
+        languageMap.put("Georgian", "ka");
+        languageMap.put("German", "de");
+        languageMap.put("Greek", "el");
+        languageMap.put("Gujarati", "gu");
+        languageMap.put("Hebrew", "he");
+        languageMap.put("Hindi", "hi");
+        languageMap.put("Hungarian", "hu");
+        languageMap.put("Icelandic", "is");
+        languageMap.put("Indonesian", "id");
+        languageMap.put("Italian", "it");
+        languageMap.put("Japanese", "ja");
+        languageMap.put("Javanese", "jv");
+        languageMap.put("Kannada", "kn");
+        languageMap.put("Korean", "ko");
+        languageMap.put("Lao", "lo");
+        languageMap.put("Latvian", "lv");
+        languageMap.put("Lithuanian", "lt");
+        languageMap.put("Macedonian", "mk");
+        languageMap.put("Malay", "ms");
+        languageMap.put("Malayalam", "ml");
+        languageMap.put("Marathi", "mr");
+        languageMap.put("Mongolian", "mn");
+        languageMap.put("Nepali", "ne");
+        languageMap.put("Norwegian", "no");
+        languageMap.put("Polish", "pl");
+        languageMap.put("Portuguese", "pt");
+        languageMap.put("Punjabi", "pa");
+        languageMap.put("Romanian", "ro");
+        languageMap.put("Russian", "ru");
+        languageMap.put("Sinhalese", "si");
+        languageMap.put("Slovak", "sk");
+        languageMap.put("Spanish", "es");
+        languageMap.put("Sundanese", "su");
+        languageMap.put("Swahili", "sw");
+        languageMap.put("Swedish", "sv");
+        languageMap.put("Tamil", "ta");
+        languageMap.put("Telugu", "te");
+        languageMap.put("Thai", "th");
+        languageMap.put("Turkish", "tr");
+        languageMap.put("Ukrainian", "uk");
+        languageMap.put("Uzbek", "uz");
+        languageMap.put("Vietnamese", "vi");
+        languageMap.put("Zulu", "zu");
     }
 
     @FXML
@@ -191,8 +293,9 @@ public class MainController {
                 boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
                 String selectedVidQuality = videoQualityComboBox.getValue();
                 String selectedAudQuality = audioQualityComboBox.getValue();
+                String captionsLang = captionsComboBox.getValue();
 
-                ArrayList<String> commandList = constructCommand(savePath, output, isAudioOnly, selectedVidQuality, selectedAudQuality, videoUrl);
+                ArrayList<String> commandList = constructCommand(savePath, output, isAudioOnly, selectedVidQuality, selectedAudQuality, captionsLang, videoUrl);
 
                 ProcessBuilder pb = new ProcessBuilder(commandList);
                 pb.redirectErrorStream(true); // includes error logs in the standard output stream
@@ -243,7 +346,7 @@ public class MainController {
         }).start();
     }
 
-    public ArrayList<String> constructCommand(String savePath, String output, boolean isAudioOnly, String selectedVidQuality, String selectedAudQuality, String videoUrl) {
+    public ArrayList<String> constructCommand(String savePath, String output, boolean isAudioOnly, String selectedVidQuality, String selectedAudQuality, String captionsLang, String videoUrl) {
         // build command
         ArrayList<String> commandList = new ArrayList<String>();
         commandList.add(getBinaryPath());
@@ -276,6 +379,19 @@ public class MainController {
 
             commandList.add("-f");
             commandList.add(formatStr);
+
+            if (!captionsLang.equals("None")) {
+                commandList.add("--write-subs");
+                commandList.add("--write-auto-subs");
+                commandList.add("--sub-langs");
+                commandList.add(languageMap.get(captionsLang));
+                commandList.add("--compat-options");
+                commandList.add("no-keep-subs");
+                commandList.add("--embed-subs");
+                commandList.add("--convert-subs");
+                commandList.add("srt");
+                commandList.add("--embed-metadata");
+            }
         }
 
         commandList.add(videoUrl);
