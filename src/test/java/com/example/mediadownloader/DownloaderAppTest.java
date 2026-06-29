@@ -30,7 +30,7 @@ public class DownloaderAppTest {
     }
 
     @Test
-    public void testOSDetectionMacPathGeneration() throws Exception {
+    public void testPathBuilder_SetsMacVariables() throws Exception {
         System.setProperty("os.name", "Mac OS X");
         DownloaderApp app = new DownloaderApp();
 
@@ -44,7 +44,7 @@ public class DownloaderAppTest {
     }
 
     @Test
-    public void testOSDetectionWindowsPathGeneration() throws Exception {
+    public void testPathBuilder_SetsWindowsVariables() throws Exception {
         System.setProperty("os.name", "Windows 11");
         DownloaderApp app = new DownloaderApp();
 
@@ -67,7 +67,7 @@ public class DownloaderAppTest {
     }
 
     @Test
-    public void testSetupBinariesWhenFilesAlreadyExist(@TempDir Path tempDir) throws Exception {
+    public void testBinarySetup_SkipsDownloadIfFilesExist(@TempDir Path tempDir) throws Exception {
         System.setProperty("os.name", "Mac OS X");
         DownloaderApp app = new DownloaderApp();
 
@@ -88,7 +88,7 @@ public class DownloaderAppTest {
     }
 
     @Test
-    public void testUnzipExtractionLogic(@TempDir Path tempDir) throws Exception {
+    public void testBinarySetup_ExtractsMissingFilesFromZip(@TempDir Path tempDir) throws Exception {
         Path zipFile = tempDir.resolve("test.zip");
         try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFile.toFile()))) {
             ZipEntry entry = new ZipEntry("extracted-tool.txt");
