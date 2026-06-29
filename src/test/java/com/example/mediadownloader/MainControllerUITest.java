@@ -159,7 +159,8 @@ public class MainControllerUITest {
     public void testUrlField_HandlesEmpty() {
         Platform.runLater(() -> controller.onDownloadClick());
         WaitForAsyncUtils.waitForFxEvents();
-        assertEquals(0.0, progressBar.getProgress());
+        assertEquals(0.0, progressBar.getProgress(),
+                "Should handle empty URL without crashing.");
     }
 
     @Test
@@ -189,8 +190,8 @@ public class MainControllerUITest {
     @Test
     public void testFormatChooser_ContainsCorrectOptions() {
         List<String> formatOptions = formatComboBox.getItems();
-        assertTrue(formatOptions.contains(FORMAT_VIDEO), "Combo box should contain the Video option.");
-        assertTrue(formatOptions.contains(FORMAT_AUDIO), "Combo box should contain the Audio option.");
+        assertTrue(formatOptions.contains(FORMAT_VIDEO), "Format combo box should contain the Video option.");
+        assertTrue(formatOptions.contains(FORMAT_AUDIO), "Format combo box should contain the Audio option.");
     }
 
     @Test
@@ -210,14 +211,14 @@ public class MainControllerUITest {
     @Test
     public void testAudQualityChooser_ContainsCorrectOptions() {
         List<String> audioOptions = audioQualityComboBox.getItems();
-        assertTrue(audioOptions.contains(AUD_BEST));
-        assertTrue(audioOptions.contains(AUD_STANDARD));
+        assertTrue(audioOptions.contains(AUD_BEST), "Audio combo box should include the Best option.");
+        assertTrue(audioOptions.contains(AUD_STANDARD), "Audio combo box should include the Standard option.");
     }
 
     @Test
     public void testAudQualityChooser_UpdatesField() {
         robot.clickOn("#audioQualityComboBox").clickOn(AUD_STANDARD);
-        assertEquals(AUD_STANDARD, audioQualityComboBox.getValue());
+        assertEquals(AUD_STANDARD, audioQualityComboBox.getValue(), "Audio combo box should update to new selection (Standard).");
     }
 
     @Test
@@ -230,10 +231,10 @@ public class MainControllerUITest {
     @Test
     public void testVidQualityChooser_ContainsCorrectOptions() {
         List<String> videoOptions = videoQualityComboBox.getItems();
-        assertTrue(videoOptions.contains(VID_BEST));
-        assertTrue(videoOptions.contains(VID_HD));
-        assertTrue(videoOptions.contains(VID_STANDARD));
-        assertTrue(videoOptions.contains(VID_LOW));
+        assertTrue(videoOptions.contains(VID_BEST), "Video combo box should contain the Best option.");
+        assertTrue(videoOptions.contains(VID_HD), "Video combo box should contain the HD option.");
+        assertTrue(videoOptions.contains(VID_STANDARD), "Video combo box should contain the Standard option.");
+        assertTrue(videoOptions.contains(VID_LOW), "Video combo box should contain the Low option.");
     }
 
     @Test
@@ -268,10 +269,10 @@ public class MainControllerUITest {
     @Test
     public void testCaptionsDropdown_ContainsCorrectOptions() {
         List<String> captionsLangs = captionsComboBox.getItems();
-        assertTrue(captionsLangs.contains("None"));
-        assertTrue(captionsLangs.contains("Afrikaans")); // first in language tree map
-        assertTrue(captionsLangs.contains("Javanese")); // kinda mid in language tree map
-        assertTrue(captionsLangs.contains("Zulu")); // last in language tree map
+        assertTrue(captionsLangs.contains("None"), "Captions combo box should include None as an option.");
+        assertTrue(captionsLangs.contains("Afrikaans"), "Captions combo box should include Afrikaans (start) as an option.");
+        assertTrue(captionsLangs.contains("Javanese"), "Captions combo box should include Javanese (mid) as an option.");
+        assertTrue(captionsLangs.contains("Zulu"), "Captions combo box should include Zulu (end) as an option.");
     }
 
     @Test
@@ -295,7 +296,7 @@ public class MainControllerUITest {
 
         robot.clickOn("#captionsComboBox").write("span").write("\n");
         assertEquals("Spanish", captionsComboBox.getValue(),
-                "Combo box should show Spanish is selected.");
+                "Captions combo box should show Spanish is selected.");
     }
 
     @Test
@@ -304,7 +305,7 @@ public class MainControllerUITest {
 
         robot.clickOn("#captionsComboBox").clickOn("Afrikaans");
         assertEquals("Afrikaans", captionsComboBox.getValue(),
-                "Combo box should show Afrikaans is selected.");
+                "Captions combo box should show Afrikaans is selected.");
     }
 
     @Test
@@ -325,7 +326,7 @@ public class MainControllerUITest {
         });
 
         WaitForAsyncUtils.waitForFxEvents();
-        assertNotNull(urlField.getText());
+        assertNotNull(urlField.getText(), "Application didn't crash.");
     }
 
     @Test
@@ -345,7 +346,9 @@ public class MainControllerUITest {
 
         WaitForAsyncUtils.waitForFxEvents();
 
-        assertEquals(0.75, progressBar.getProgress(), 0.001);
-        assertEquals("Downloading: 75%", statusLabel.getText());
+        assertEquals(0.75, progressBar.getProgress(), 0.001,
+                "Progress bar shows correct progress (75%).");
+        assertEquals("Downloading: 75%", statusLabel.getText(),
+                "Status label shows correct progress (75%).");
     }
 }
