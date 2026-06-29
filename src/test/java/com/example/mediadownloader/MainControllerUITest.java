@@ -119,7 +119,7 @@ public class MainControllerUITest {
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(simulatedChosenFolder.getAbsolutePath(), downloadFolderField.getText(),
-                "The text field should update to the newly selected path.");
+                "The directory text field should update to the newly selected path.");
     }
 
     @Test
@@ -145,7 +145,7 @@ public class MainControllerUITest {
         WaitForAsyncUtils.waitForFxEvents();
 
         assertEquals(originalPath, downloadFolderField.getText(),
-                "The text field should not change if the user cancels the window.");
+                "The directory text field should not change if the user cancels the window.");
     }
 
     @Test
@@ -160,7 +160,7 @@ public class MainControllerUITest {
         Platform.runLater(() -> controller.onDownloadClick());
         WaitForAsyncUtils.waitForFxEvents();
         assertEquals(0.0, progressBar.getProgress(),
-                "Should handle empty URL without crashing.");
+                "URL field should handle empty URL without crashing.");
     }
 
     @Test
@@ -198,7 +198,7 @@ public class MainControllerUITest {
     public void testFormatChooser_UpdatesField() {
         robot.clickOn("#formatComboBox").clickOn(FORMAT_AUDIO);
         assertEquals(FORMAT_AUDIO, formatComboBox.getValue(),
-                "The combo box should display the newly selected format (MP3).");
+                "Format combo box should display the newly selected format (MP3).");
     }
 
     @Test
@@ -241,7 +241,7 @@ public class MainControllerUITest {
     public void testVidQualityChooser_UpdatesField() {
         robot.clickOn("#videoQualityComboBox").clickOn(VID_LOW);
         assertEquals(VID_LOW, videoQualityComboBox.getValue(),
-                "The video quality combo box should show Low (480p) is selected.");
+                "Video combo box should show Low (480p) is selected.");
     }
 
     @Test
@@ -267,7 +267,7 @@ public class MainControllerUITest {
     }
 
     @Test
-    public void testCaptionsDropdown_ContainsCorrectOptions() {
+    public void testCaptionsChooser_ContainsCorrectOptions() {
         List<String> captionsLangs = captionsComboBox.getItems();
         assertTrue(captionsLangs.contains("None"), "Captions combo box should include None as an option.");
         assertTrue(captionsLangs.contains("Afrikaans"), "Captions combo box should include Afrikaans (start) as an option.");
@@ -279,15 +279,15 @@ public class MainControllerUITest {
     public void testCaptionsChooser_EnablesAndDisables() {
         robot.clickOn("#formatComboBox").clickOn(FORMAT_VIDEO);
         assertFalse(captionsComboBox.isDisable(),
-                "Captions chooser should be enabled when downloading a video.");
+                "Captions combo box should be enabled when downloading a video.");
 
         robot.clickOn("#formatComboBox").clickOn(FORMAT_AUDIO);
         assertTrue(captionsComboBox.isDisable(),
-                "Captions chooser should be disabled when downloading audio only.");
+                "Captions combo box should be disabled when downloading audio only.");
 
         robot.clickOn("#formatComboBox").clickOn(FORMAT_VIDEO);
         assertFalse(captionsComboBox.isDisable(),
-                "Captions chooser should be re-enabled when switching back to video mode.");
+                "Captions combo box should be re-enabled when switching back to video mode.");
     }
 
     @Test
