@@ -8,7 +8,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.framework.junit5.Start;
+
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.prefs.Preferences;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,6 +36,8 @@ public class MainControllerTest {
 
     @Start
     public void start(Stage stage) throws Exception {
+        Preferences.userNodeForPackage(MainController.class).clear();
+
         controller = Mockito.spy(new MainController());
 
         FXMLLoader fxmlLoader = new FXMLLoader(DownloaderApp.class.getResource("main-view.fxml"));
@@ -58,27 +63,27 @@ public class MainControllerTest {
     }
 
     @Test
-    public void testBinaryPath_ResolvesCorrectOs() throws Exception {
-        java.lang.reflect.Method method = MainController.class.getDeclaredMethod("getBinaryPath");
+    public void testResolveToolPath_ResolvesCorrectOs() throws Exception {
+        java.lang.reflect.Method method = MainController.class.getDeclaredMethod("resolveToolPath", String.class, String.class);
         method.setAccessible(true);
 
         String currentOs = System.getProperty("os.name");
+        String userHome = System.getProperty("user.home");
 
-        System.setProperty("os.name", "Mac OS X");
-        String macResult = (String) method.invoke(controller);
-        assertNotNull(macResult, "Mac binary path should resolve properly");
-
-        System.setProperty("os.name", "Windows 11");
         try {
-            String winResult = (String) method.invoke(controller);
-            assertNotNull(winResult);
-        } catch (java.lang.reflect.InvocationTargetException e) {
-            if (!(e.getCause() instanceof NullPointerException)) {
-                throw e;
-            }
-        }
+            System.setProperty("os.name", "Mac OS X");
+            String macResult = (String) method.invoke(controller, "yt-dlp.exe", "yt-dlp");
+            assertEquals(Paths.get(userHome, "Library", "Application Support", "MP4U", "bin", "yt-dlp").toString(),
+                    macResult, "Mac binary path should resolve under ~/Library/Application Support/MP4U/bin");
 
-        System.setProperty("os.name", currentOs);
+            System.setProperty("os.name", "Windows 11");
+            String winResult = (String) method.invoke(controller, "yt-dlp.exe", "yt-dlp");
+            String expectedAppData = (System.getenv("APPDATA") == null) ? userHome : System.getenv("APPDATA");
+            assertEquals(Paths.get(expectedAppData, "MP4U", "bin", "yt-dlp.exe").toString(), winResult,
+                    "Win binary path should resolve under APPDATA, or userHome if APPDATA is not set.");
+        } finally {
+            System.setProperty("os.name", currentOs);
+        }
     }
 
     @Test

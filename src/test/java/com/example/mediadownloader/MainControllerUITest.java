@@ -11,6 +11,7 @@ import org.controlsfx.control.SearchableComboBox;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.testfx.api.FxRobot;
 import org.testfx.framework.junit5.ApplicationExtension;
@@ -18,11 +19,14 @@ import org.testfx.framework.junit5.Start;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.prefs.Preferences;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 
 @ExtendWith(ApplicationExtension.class)
@@ -157,10 +161,14 @@ public class MainControllerUITest {
 
     @Test
     public void testUrlField_HandlesEmpty() {
+        Mockito.doNothing().when(controller).showErrorAlert(any(), any());
+
         Platform.runLater(() -> controller.onDownloadClick());
         WaitForAsyncUtils.waitForFxEvents();
+
+        Mockito.verify(controller).showErrorAlert(eq("Invalid URL"), any());
         assertEquals(0.0, progressBar.getProgress(),
-                "URL field should handle empty URL without crashing.");
+                "Progress bar shouldn't move when given empty URL.");
     }
 
     @Test
@@ -317,32 +325,43 @@ public class MainControllerUITest {
     }
 
     @Test
-    public void testDownload_TriggersProcess() {
-        Platform.runLater(() -> {
-            urlField.setText("https://www.youtube.com/watch?v=mock_id");
-            try {
-                controller.onDownloadClick();
-            } catch (Exception ignored) {}
-        });
+    public void testDownload_TriggersProcess() throws Exception {
+        Process mockProcess = Mockito.mock(Process.class);
 
-        WaitForAsyncUtils.waitForFxEvents();
-        assertNotNull(urlField.getText(), "Application didn't crash.");
+        Mockito.when(mockProcess.getInputStream()).thenReturn(InputStream.nullInputStream());
+        CountDownLatch releaseProcess = new CountDownLatch(1);
+        // prevent race btwn checking for "Starting download..." & when "Download complete!" hits
+        Mockito.when(mockProcess.waitFor()).thenAnswer(invocation -> {
+            releaseProcess.await();
+            return 0;
+        });
+        doReturn(mockProcess).when(controller).startDownloadProcess(any());
+
+        try {
+            Platform.runLater(() -> {
+                urlField.setText("https://www.youtube.com/watch?v=mock_id");
+                controller.onDownloadClick();
+            });
+
+            WaitForAsyncUtils.waitForFxEvents();
+
+            assertEquals("Starting download...", statusLabel.getText(),
+                    "Status label should immediately reflect that the download has started.");
+
+            Mockito.verify(controller, Mockito.timeout(1000)).startDownloadProcess(any());
+        } finally {
+            releaseProcess.countDown();
+        }
     }
 
     @Test
-    public void testProgressBar_UpdatesFromThread() throws Exception {
+    public void testProgressBar_UpdatesFromBackgroundThread() throws Exception {
         java.lang.reflect.Method method = MainController.class.getDeclaredMethod(
                 "updateProgress", double.class, String.class
         );
         method.setAccessible(true);
 
-        Platform.runLater(() -> {
-            try {
-                method.invoke(controller, 0.75, "Downloading: 75%");
-            } catch (Exception e) {
-                fail("Reflection invocation failed: " + e.getMessage());
-            }
-        });
+        method.invoke(controller, 0.75, "Downloading: 75%");
 
         WaitForAsyncUtils.waitForFxEvents();
 
