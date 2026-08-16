@@ -10,10 +10,12 @@ import org.controlsfx.control.SearchableComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -285,65 +287,69 @@ public class MainController {
 
         updateProgress(0, "Starting download...");
 
-        // prevent UI from freezing during download
-        new Thread(() -> {
-            try {
-                logger.info("Preparing to download: {} to {}", videoUrl, savePath);
+        new Thread(() -> runDownload(videoUrl, savePath, output)).start();
+    }
 
-                boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
-                String selectedVidQuality = videoQualityComboBox.getValue();
-                String selectedAudQuality = audioQualityComboBox.getValue();
-                String captionsLang = captionsComboBox.getValue();
+    private void runDownload(String videoUrl, String savePath, String output) {
+        try {
+            logger.info("Preparing to download: {} to {}", videoUrl, savePath);
 
-                ArrayList<String> commandList = constructCommand(savePath, output, isAudioOnly, selectedVidQuality, selectedAudQuality, captionsLang, videoUrl);
+            boolean isAudioOnly = FORMAT_AUDIO.equals(formatComboBox.getValue());
+            String selectedVidQuality = videoQualityComboBox.getValue();
+            String selectedAudQuality = audioQualityComboBox.getValue();
+            String captionsLang = captionsComboBox.getValue();
 
-                ProcessBuilder pb = new ProcessBuilder(commandList);
-                pb.redirectErrorStream(true); // includes error logs in the standard output stream
+            ArrayList<String> commandList = constructCommand(savePath, output, isAudioOnly, selectedVidQuality, selectedAudQuality, captionsLang, videoUrl);
 
-                logger.debug("Executing command: {}", commandList);
-                Process process = pb.start();
+            logger.debug("Executing command: {}", commandList);
+            Process process = startDownloadProcess(commandList);
 
-                // read output from yt-dlp and send it to logger & UI
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        logger.debug("[yt-dlp] {}", line);
+            // read output from yt-dlp and send it to logger & UI
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    logger.debug("[yt-dlp] {}", line);
 
-                        // parse the line for progress percentages
-                        Matcher matcher = PERCENT_PATTERN.matcher(line);
-                        if (matcher.find()) {
-                            double percentage = Double.parseDouble(matcher.group(1));
-                            // expects value between 0.0 and 1.0
-                            double progressValue = percentage / 100.0;
+                    // parse the line for progress percentages
+                    Matcher matcher = PERCENT_PATTERN.matcher(line);
+                    if (matcher.find()) {
+                        double percentage = Double.parseDouble(matcher.group(1));
+                        // expects value between 0.0 and 1.0
+                        double progressValue = percentage / 100.0;
 
-                            // update the progress bar in real time
-                            updateProgress(progressValue, "Downloading: " + matcher.group(1) + "%");
-                        }
+                        // update the progress bar in real time
+                        updateProgress(progressValue, "Downloading: " + matcher.group(1) + "%");
                     }
                 }
-
-                int exitCode = process.waitFor();
-                if (exitCode == 0) {
-                    logger.info("Download finished successfully!");
-                    updateProgress(1.0, "Download Complete!");
-                } else {
-                    logger.error("Download failed with exit code: {}", exitCode);
-                    updateProgress(0, "Download Failed.");
-
-                    // trigger popup alert
-                    showErrorAlert(
-                            "Download Failed",
-                            "The download tool encountered an error.\n\n Please verify that the URL is a direct video link and try again."
-                    );
-                }
-
-            } catch (Exception e) {
-                logger.error("A critical error occurred during the process", e);
-                updateProgress(0, "An error occurred.");
-                // trigger popup alert
-                showErrorAlert("Critical Error", "An unexpected error occurred: " + e.getMessage());
             }
-        }).start();
+
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                logger.info("Download finished successfully!");
+                updateProgress(1.0, "Download Complete!");
+            } else {
+                logger.error("Download failed with exit code: {}", exitCode);
+                updateProgress(0, "Download Failed.");
+
+                // trigger popup alert
+                showErrorAlert(
+                        "Download Failed",
+                        "The download tool encountered an error.\n\n Please verify that the URL is a direct video link and try again."
+                );
+            }
+
+        } catch (Exception e) {
+            logger.error("A critical error occurred during the process", e);
+            updateProgress(0, "An error occurred.");
+            // trigger popup alert
+            showErrorAlert("Critical Error", "An unexpected error occurred: " + e.getMessage());
+        }
+    }
+
+    protected Process startDownloadProcess(List<String> commandList) throws IOException {
+        ProcessBuilder pb = new ProcessBuilder(commandList);
+        pb.redirectErrorStream(true); // includes error logs in the standard output stream
+        return pb.start();
     }
 
     public ArrayList<String> constructCommand(String savePath, String output, boolean isAudioOnly, String selectedVidQuality, String selectedAudQuality, String captionsLang, String videoUrl) {
@@ -408,7 +414,7 @@ public class MainController {
     }
 
     // show popup alerts
-    private void showErrorAlert(String title, String message) {
+    protected void showErrorAlert(String title, String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle(title);
@@ -419,23 +425,21 @@ public class MainController {
     }
 
     private String getBinaryPath() {
-        String os = System.getProperty("os.name").toLowerCase();
-        String userHome = System.getProperty("user.home");
-
-        if (os.contains("win")) {
-            return Paths.get(System.getenv("APPDATA"), "MP4U", "bin", "yt-dlp.exe").toString();
-        } else {
-            return Paths.get(userHome, "Library", "Application Support", "MP4U", "bin", "yt-dlp").toString();
-        }
+        return resolveToolPath("yt-dlp.exe", "yt-dlp");
     }
 
     private String getFfmpegPath() {
+        return resolveToolPath("ffmpeg.exe", "ffmpeg");
+    }
+
+    private String resolveToolPath(String winToolName, String macToolName) {
         String os = System.getProperty("os.name").toLowerCase();
         String userHome = System.getProperty("user.home");
-        if (os.contains("win")) {
-            return Paths.get(System.getenv("APPDATA"), "MP4U", "bin", "ffmpeg.exe").toString();
+
+        if(os.contains("win")){
+            return DownloaderApp.resolveWindowsBinaryFolder(System.getenv("APPDATA"), userHome).resolve(winToolName).toString();
         } else {
-            return Paths.get(userHome, "Library", "Application Support", "MP4U", "bin", "ffmpeg").toString();
+            return Paths.get(userHome, "Library", "Application Support", "MP4U", "bin", macToolName).toString();
         }
     }
 }

@@ -57,7 +57,7 @@ public class DownloaderApp extends Application {
         String userHome = System.getProperty("user.home");
 
         if (os.contains("win")) {
-            binaryFolder = Paths.get(System.getenv("APPDATA"), "MP4U", "bin");
+            binaryFolder = resolveWindowsBinaryFolder(System.getenv("APPDATA"), userHome);
             toolNames = new String[]{"yt-dlp.exe", "ffmpeg.exe", "ffprobe.exe"};
             zipName = "windows-tools.zip";
         } else if (os.contains("mac")) {
@@ -70,21 +70,16 @@ public class DownloaderApp extends Application {
         }
     }
 
+    static Path resolveWindowsBinaryFolder(String appData, String userHome) {
+        String root = (appData == null) ? userHome : appData;
+        return Paths.get(root, "MP4U", "bin");
+    }
+
     private boolean setupBinaries() {
         logger.info("Checking local tools at: {}", binaryFolder.toAbsolutePath());
 
-        // check if all tools present in the system folder
-        boolean allToolsExist = true;
-        for (String name : toolNames) {
-            File tool = binaryFolder.resolve(name).toFile();
-            if (!tool.exists()) {
-                allToolsExist = false;
-                break;
-            }
-        }
-
-        // if tools exist, make sure permissions are set
-        if (allToolsExist) {
+        // check if all tools present in the system folder, if they are, set permissions
+        if(allToolsPresent()) {
             logger.info("All tools verified locally and ready!");
             return ensurePermissions();
         }
@@ -94,49 +89,61 @@ public class DownloaderApp extends Application {
         try {
             Files.createDirectories(binaryFolder);
 
-            String fullDownloadUrl = GITHUB_RELEASE_URL + zipName;
-            logger.info("Downloading dependencies from: {}", fullDownloadUrl);
-
-            HttpClient client = HttpClient.newBuilder()
-                    .followRedirects(HttpClient.Redirect.ALWAYS)
-                    .build();
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(fullDownloadUrl))
-                    .GET()
-                    .build();
-
             Path tempZipFile = binaryFolder.resolve("temp_dependencies.zip");
-            HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(tempZipFile));
-
-            if (response.statusCode() != 200) {
-                logger.error("Failed to download assets. Server status code: {}", response.statusCode());
-                return false;
-            }
-
-            logger.info("Download completed successfully. Extracting assets...");
-
-            // unzip
-            try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tempZipFile.toFile()))) {
-                ZipEntry entry;
-                while ((entry = zis.getNextEntry()) != null) {
-                    Path filePath = binaryFolder.resolve(entry.getName());
-                    if (!entry.isDirectory()) {
-                        Files.createDirectories(filePath.getParent());
-                        Files.copy(zis, filePath, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                    zis.closeEntry();
-                }
-            }
-
+            downloadZip(zipName, tempZipFile);
+            extractZip(tempZipFile);
             Files.deleteIfExists(tempZipFile);
+
             logger.info("Extraction completed and temporary files cleaned up.");
-
             return ensurePermissions();
-
         } catch (Exception e) {
             logger.error("Critical error while downloading or extracting release assets", e);
             return false;
+        }
+    }
+
+    private boolean allToolsPresent() {
+        for (String name : toolNames) {
+            if (!binaryFolder.resolve(name).toFile().exists()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void downloadZip(String zipName, Path destination) throws IOException, InterruptedException {
+        String fullDownloadUrl = GITHUB_RELEASE_URL + zipName;
+        logger.info("Downloading dependencies from: {}", fullDownloadUrl);
+
+        HttpClient client = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.ALWAYS)
+                .build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(fullDownloadUrl))
+                .GET()
+                .build();
+
+        HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(destination));
+
+        if (response.statusCode() != 200) {
+            throw new IOException("Failed to download assets. Server status code: " + response.statusCode());
+        }
+
+        logger.info("Download completed successfully. Extracting assets...");
+    }
+
+    private void extractZip(Path zipFile) throws IOException {
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile.toFile()))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                Path filePath = binaryFolder.resolve(entry.getName());
+                if (!entry.isDirectory()) {
+                    Files.createDirectories(filePath.getParent());
+                    Files.copy(zis, filePath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                zis.closeEntry();
+            }
         }
     }
 
