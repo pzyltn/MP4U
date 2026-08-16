@@ -2,11 +2,7 @@ name: Java CI with Maven
 
 on:
   push:
-    # run checks on all feature branches
-    branches: [ "feature/**" ]
   pull_request:
-    # run checks on PR to main
-    branches: [ "main" ]
 
 jobs:
   build:
